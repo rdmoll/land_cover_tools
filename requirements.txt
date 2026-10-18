@@ -3,6 +3,17 @@ scipy
 pandas
 matplotlib
 
+# Imagery access and geospatial I/O
+pystac-client
+planetary-computer
+rasterio
+geopandas
+pyyaml
+
+# Deep learning
+torch
+segmentation-models-pytorch
+
 # Dev tools
 pytest
 ruff

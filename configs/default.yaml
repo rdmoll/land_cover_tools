@@ -1,0 +1,44 @@
+# Area of interest and imagery source. NAIP covers the contiguous US only.
+imagery:
+  bbox: [-122.420, 47.655, -122.405, 47.665]   # min_lon, min_lat, max_lon, max_lat (WGS84)
+  collection: naip
+  datetime: "2015-01-01/2026-12-31"            # newest year in this range is used
+  resolution: 1.0                              # output pixel size in meters
+  bands: [1, 2, 3, 4]                          # NAIP: red, green, blue, near-infrared
+  output: data/imagery.tif
+
+# User-defined land-cover categories. Keys are the unsigned integers written
+# to the output GeoTIFF; 0 is reserved for unlabeled / no data.
+classes:
+  1: {name: water, color: "#1f78b4"}
+  2: {name: tree_canopy, color: "#33a02c"}
+  3: {name: low_vegetation, color: "#b2df8a"}
+  4: {name: impervious, color: "#e31a1c"}
+  5: {name: bare_ground, color: "#fdbf6f"}
+
+# Label polygons drawn over data/imagery.tif (e.g. in QGIS).
+labels:
+  path: data/labels.gpkg
+  class_field: class_id
+
+training:
+  model_path: data/model.pt
+  chip_size: 256               # multiple of 32
+  chip_stride: 128
+  min_labeled_fraction: 0.05   # skip chips with less labeled area than this
+  val_fraction: 0.2
+  encoder: resnet34
+  encoder_weights: imagenet    # or null to train from scratch
+  epochs: 50
+  batch_size: 8
+  learning_rate: 0.0001
+  samples_per_epoch: 400       # random chips drawn per epoch; null = one pass
+  seed: 0
+  device: auto                 # auto, cuda, mps or cpu
+
+prediction:
+  output: data/landcover.tif
+  tile_size: 512               # multiple of 32
+  overlap: 64                  # context discarded on each tile edge
+  batch_size: 4
+  device: auto
