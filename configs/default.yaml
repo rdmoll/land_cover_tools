@@ -10,11 +10,12 @@ imagery:
 # User-defined land-cover categories. Keys are the unsigned integers written
 # to the output GeoTIFF; 0 is reserved for unlabeled / no data.
 classes:
-  1: {name: water, color: "#1f78b4"}
-  2: {name: tree_canopy, color: "#33a02c"}
-  3: {name: low_vegetation, color: "#b2df8a"}
-  4: {name: impervious, color: "#e31a1c"}
-  5: {name: bare_ground, color: "#fdbf6f"}
+  1: {name: buildings, color: "#e31a1c"}
+  2: {name: roads, color: "#636363"}
+  3: {name: tree_canopy, color: "#33a02c"}
+  4: {name: low_vegetation, color: "#b2df8a"}
+  5: {name: water, color: "#1f78b4"}
+  6: {name: bare_ground, color: "#fdbf6f"}
 
 # Label polygons drawn over data/imagery.tif (e.g. in QGIS).
 labels:

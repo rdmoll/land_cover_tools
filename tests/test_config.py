@@ -12,7 +12,7 @@ def raw_config() -> dict:
 
 def test_default_config_loads():
     cfg = load_config(Path("configs/default.yaml"))
-    assert cfg.class_ids == (1, 2, 3, 4, 5)
+    assert cfg.class_ids == (1, 2, 3, 4, 5, 6)
     assert cfg.imagery.resolution == 1.0
     assert cfg.imagery.bands == (1, 2, 3, 4)
     assert cfg.training.model_path.is_absolute()

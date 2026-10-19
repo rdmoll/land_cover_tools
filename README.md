@@ -99,7 +99,7 @@ cursor icon) and click the image.
    (Ctrl/Cmd + .).
 3. Click to place the corners of a polygon and right-click to finish it. In
    the form that appears, enter the `class_id`, which is the class's number
-   under `classes:` in the config (for example 2 for `tree_canopy`).
+   under `classes:` in the config (for example 3 for `tree_canopy`).
 4. Click *Save Layer Edits* (the disk icon next to the pencil) regularly, and
    turn editing off when you're done. Training reads the saved file.
 
@@ -144,6 +144,11 @@ and add it again.
 
 - Label hard cases (shadows, dark roofs vs. water, dry grass vs. bare soil)
   and retrain; iterating on labels helps more than tuning hyperparameters.
+- Every pixel gets one of the configured classes. Decide where surfaces
+  without their own class belong (for example parking lots, driveways and
+  sidewalks under `roads`) and label them consistently.
+- Trees often hang over roads and roofs. Label what the camera sees from
+  above: canopy over a road is `tree_canopy`.
 - Training chips overlap (`chip_stride` < `chip_size`), so validation chips
   can share pixels with training chips and validation accuracy reads high.
   Check the output map visually.
