@@ -60,3 +60,33 @@ def test_overlap_must_leave_a_core():
     raw["prediction"]["overlap"] = 256
     with pytest.raises(ValueError, match="overlap"):
         parse_config(raw)
+
+
+def test_center_and_size_accepted():
+    raw = raw_config()
+    del raw["imagery"]["bbox"]
+    raw["imagery"]["center"] = [-84.10768, 39.77369]
+    raw["imagery"]["size_m"] = 5000
+    cfg = parse_config(raw)
+    assert cfg.imagery.bbox is None
+    assert cfg.imagery.center == (-84.10768, 39.77369)
+    assert cfg.imagery.size_m == 5000.0
+
+
+@pytest.mark.parametrize(
+    "imagery",
+    [
+        {"center": [0, 0], "size_m": 100, "bbox": [0, 0, 1, 1]},
+        {},
+        {"center": [0, 0]},
+        {"size_m": 100},
+        {"center": [0, 0], "size_m": -5},
+        {"center": [200, 0], "size_m": 100},
+    ],
+)
+def test_area_must_be_bbox_or_center_and_size(imagery):
+    raw = raw_config()
+    del raw["imagery"]["bbox"]
+    raw["imagery"].update(imagery)
+    with pytest.raises(ValueError, match="imagery"):
+        parse_config(raw)

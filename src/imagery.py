@@ -16,6 +16,7 @@ from rasterio.crs import CRS
 from rasterio.enums import Resampling
 from rasterio.errors import WindowError
 from rasterio.warp import reproject, transform_bounds
+from rasterio.warp import transform as transform_coords
 from rasterio.windows import Window, from_bounds
 
 from src.config import ImageryConfig
@@ -66,6 +67,48 @@ def target_grid(
     return GeoGrid(crs, transform, width, height)
 
 
+def centered_grid(
+    lon: float, lat: float, size_m: float, resolution: float = 1.0
+) -> GeoGrid:
+    """Build a square north-up UTM grid centered on a lon/lat point.
+
+    Parameters
+    ----------
+    lon, lat : float
+        Center in WGS84 degrees.
+    size_m : float
+        Edge length of the square in meters, rounded to whole pixels.
+    resolution : float
+        Pixel size in meters.
+
+    Returns
+    -------
+    GeoGrid
+        Grid in the UTM zone of the center, with edges snapped to multiples
+        of ``resolution``.
+    """
+    crs = CRS.from_epsg(utm_epsg(lon, lat))
+    (x,), (y,) = transform_coords("EPSG:4326", crs, [lon], [lat])
+    n = round(size_m / resolution)
+    left = round((x - n * resolution / 2) / resolution) * resolution
+    top = round((y + n * resolution / 2) / resolution) * resolution
+    affine = Affine(resolution, 0.0, left, 0.0, -resolution, top)
+    return GeoGrid(crs, affine, n, n)
+
+
+def grid_for_config(cfg: ImageryConfig) -> GeoGrid:
+    """The output grid described by an imagery config."""
+    if cfg.bbox is not None:
+        return target_grid(cfg.bbox, cfg.resolution)
+    lon, lat = cfg.center
+    return centered_grid(lon, lat, cfg.size_m, cfg.resolution)
+
+
+def wgs84_bounds(grid: GeoGrid) -> tuple[float, float, float, float]:
+    """Lon/lat bounding box that encloses a grid."""
+    return transform_bounds(grid.crs, "EPSG:4326", *grid.bounds, densify_pts=21)
+
+
 def item_year(item: pystac.Item) -> int:
     """Acquisition year of a STAC item."""
     if "naip:year" in item.properties:
@@ -88,16 +131,20 @@ def latest_year_items(items: Iterable[pystac.Item]) -> list[pystac.Item]:
     return [i for i in items if item_year(i) == year]
 
 
-def search_items(cfg: ImageryConfig) -> list[pystac.Item]:
-    """Search Planetary Computer for items intersecting the bbox."""
+def search_items(
+    collection: str,
+    bbox: tuple[float, float, float, float],
+    datetime: str | None = None,
+) -> list[pystac.Item]:
+    """Search Planetary Computer for items intersecting a lon/lat bbox."""
     catalog = pystac_client.Client.open(
         STAC_URL, modifier=planetary_computer.sign_inplace
     )
     search = catalog.search(
-        collections=[cfg.collection], bbox=list(cfg.bbox), datetime=cfg.datetime
+        collections=[collection], bbox=list(bbox), datetime=datetime
     )
     items = list(search.items())
-    logger.info("Found %d %s items for bbox %s", len(items), cfg.collection, cfg.bbox)
+    logger.info("Found %d %s items for bbox %s", len(items), collection, bbox)
     return items
 
 
@@ -155,7 +202,7 @@ def _warp_item(
 
 
 def download_imagery(cfg: ImageryConfig) -> GeoGrid:
-    """Download, mosaic and resample imagery for the configured bbox.
+    """Download, mosaic and resample imagery for the configured area.
 
     The result is written to ``cfg.output`` as a uint8 GeoTIFF on a UTM grid
     with ``cfg.resolution`` meter pixels. Pixels with no coverage are 0 in
@@ -166,7 +213,8 @@ def download_imagery(cfg: ImageryConfig) -> GeoGrid:
     GeoGrid
         Georeferencing of the written image.
     """
-    grid = target_grid(cfg.bbox, cfg.resolution)
+    grid = grid_for_config(cfg)
+    bbox = wgs84_bounds(grid)
     logger.info(
         "Target grid: %s, %d x %d px at %.2f m",
         grid.crs,
@@ -174,10 +222,10 @@ def download_imagery(cfg: ImageryConfig) -> GeoGrid:
         grid.height,
         cfg.resolution,
     )
-    items = latest_year_items(search_items(cfg))
+    items = latest_year_items(search_items(cfg.collection, bbox, cfg.datetime))
     if not items:
         raise RuntimeError(
-            f"No {cfg.collection} imagery found for bbox {cfg.bbox}. NAIP only "
+            f"No {cfg.collection} imagery found for bbox {bbox}. NAIP only "
             "covers the contiguous United States."
         )
     logger.info("Using %d items from %d", len(items), item_year(items[0]))
@@ -195,7 +243,7 @@ def download_imagery(cfg: ImageryConfig) -> GeoGrid:
             break
 
     if not valid.any():
-        raise RuntimeError("Imagery items were found but none covered the bbox")
+        raise RuntimeError("Imagery items were found but none covered the area")
     logger.info("Coverage: %.1f%% of the grid", 100 * valid.mean())
     mosaic[:, valid] = np.maximum(mosaic[:, valid], 1)
     write_raster(cfg.output, mosaic, grid, nodata=0)

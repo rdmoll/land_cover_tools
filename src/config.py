@@ -29,12 +29,18 @@ class LandCoverClass:
     color: str | None = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class ImageryConfig:
-    """Settings for downloading imagery from Planetary Computer."""
+    """Settings for downloading imagery from Planetary Computer.
 
-    bbox: tuple[float, float, float, float]
+    The area is given either as ``bbox`` (lon/lat) or as ``center`` (lon/lat)
+    plus ``size_m``, a square edge length in meters on the UTM grid.
+    """
+
     output: Path
+    bbox: tuple[float, float, float, float] | None = None
+    center: tuple[float, float] | None = None
+    size_m: float | None = None
     collection: str = "naip"
     datetime: str | None = None
     resolution: float = 1.0
@@ -134,13 +140,31 @@ def parse_config(raw: dict[str, Any], base_dir: Path | None = None) -> Config:
         return p if p.is_absolute() else base / p
 
     img = dict(raw["imagery"])
-    bbox = tuple(float(v) for v in img.pop("bbox"))
-    if len(bbox) != 4 or bbox[0] >= bbox[2] or bbox[1] >= bbox[3]:
-        raise ValueError("imagery.bbox must be [min_lon, min_lat, max_lon, max_lat]")
+    has_bbox = img.get("bbox") is not None
+    has_center = img.get("center") is not None or img.get("size_m") is not None
+    if has_bbox == has_center:
+        raise ValueError("imagery needs either bbox, or center and size_m (not both)")
+    if has_bbox:
+        bbox = tuple(float(v) for v in img["bbox"])
+        if len(bbox) != 4 or bbox[0] >= bbox[2] or bbox[1] >= bbox[3]:
+            raise ValueError(
+                "imagery.bbox must be [min_lon, min_lat, max_lon, max_lat]"
+            )
+        img["bbox"] = bbox
+    else:
+        center = tuple(float(v) for v in img.get("center") or ())
+        if len(center) != 2 or not (
+            -180 <= center[0] <= 180 and -90 <= center[1] <= 90
+        ):
+            raise ValueError("imagery.center must be [lon, lat] in degrees")
+        if img.get("size_m") is None or float(img["size_m"]) <= 0:
+            raise ValueError("imagery.size_m must be a positive number of meters")
+        img["center"] = center
+        img["size_m"] = float(img["size_m"])
     img["output"] = path(img["output"])
     if "bands" in img:
         img["bands"] = tuple(int(b) for b in img["bands"])
-    imagery = ImageryConfig(bbox=bbox, **img)
+    imagery = ImageryConfig(**img)
 
     lbl = dict(raw["labels"])
     lbl["path"] = path(lbl["path"])

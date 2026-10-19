@@ -1,6 +1,9 @@
 # Area of interest and imagery source. NAIP covers the contiguous US only.
 imagery:
   bbox: [-122.420, 47.655, -122.405, 47.665]   # min_lon, min_lat, max_lon, max_lat (WGS84)
+  # Or, for an exact square on the 1 m grid, replace bbox with:
+  # center: [-122.4125, 47.66]                 # lon, lat (WGS84)
+  # size_m: 1000                               # edge length in meters
   collection: naip
   datetime: "2015-01-01/2026-12-31"            # newest year in this range is used
   resolution: 1.0                              # output pixel size in meters

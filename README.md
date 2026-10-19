@@ -13,8 +13,14 @@ python -m venv .venv && source .venv/bin/activate && pip install -r requirements
 ## Workflow
 
 1. **Configure** `configs/default.yaml` (or a copy of it):
-   - `imagery.bbox`: area of interest as `[min_lon, min_lat, max_lon, max_lat]`.
-     NAIP covers the contiguous US only.
+   - The area of interest, given in one of two ways. NAIP covers the
+     contiguous US only.
+     - `imagery.bbox`: `[min_lon, min_lat, max_lon, max_lat]`. The output grid
+       is the UTM rectangle that encloses this box, so it comes out slightly
+       larger than the box.
+     - `imagery.center: [lon, lat]` plus `imagery.size_m`: an exact square,
+       e.g. `size_m: 5000` gives 5000 × 5000 pixels at 1 m. See
+       `configs/dayton.yaml`.
    - `classes`: your land-cover categories. Each key is the integer written to
      the output (1–65535; 0 is reserved for unlabeled/no data).
 

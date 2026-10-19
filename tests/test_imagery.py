@@ -3,8 +3,16 @@ from datetime import datetime
 import numpy as np
 import pystac
 import pytest
+from rasterio.warp import transform
 
-from src.imagery import latest_year_items, merge_first, target_grid, utm_epsg
+from src.imagery import (
+    centered_grid,
+    latest_year_items,
+    merge_first,
+    target_grid,
+    utm_epsg,
+    wgs84_bounds,
+)
 
 
 @pytest.mark.parametrize(
@@ -51,3 +59,30 @@ def test_merge_first_only_fills_empty_pixels():
     merge_first(dest, dest_valid, src, src_valid)
     assert dest.tolist() == [[[5, 7, 0]]]
     assert dest_valid.tolist() == [[True, True, False]]
+
+
+def test_centered_grid_is_exact_square_around_point():
+    lon, lat = -84.10768, 39.77369
+    grid = centered_grid(lon, lat, 5000, 1.0)
+    assert grid.crs.to_epsg() == 32616
+    assert (grid.width, grid.height) == (5000, 5000)
+    assert (grid.transform.a, grid.transform.e) == (1.0, -1.0)
+    left, bottom, right, top = grid.bounds
+    assert float(left).is_integer() and float(top).is_integer()
+    (x,), (y,) = transform("EPSG:4326", grid.crs, [lon], [lat])
+    assert abs((left + right) / 2 - x) <= 0.5
+    assert abs((bottom + top) / 2 - y) <= 0.5
+
+
+def test_centered_grid_rounds_size_to_whole_pixels():
+    grid = centered_grid(-84.1, 39.8, 1001, 2.0)
+    assert (grid.width, grid.height) == (500, 500)
+
+
+def test_wgs84_bounds_encloses_center():
+    grid = centered_grid(-84.10768, 39.77369, 5000)
+    min_lon, min_lat, max_lon, max_lat = wgs84_bounds(grid)
+    assert min_lon < -84.10768 < max_lon
+    assert min_lat < 39.77369 < max_lat
+    # 5 km is ~0.045 deg of latitude
+    assert 0.044 < max_lat - min_lat < 0.047

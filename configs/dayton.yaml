@@ -1,0 +1,47 @@
+# 5 km x 5 km area centered on 39.77369 N, 84.10768 W (Dayton, Ohio).
+# Area of interest and imagery source. NAIP covers the contiguous US only.
+imagery:
+  center: [-84.10768, 39.77369]                # lon, lat (WGS84): 39.77369 N, 84.10768 W
+  size_m: 5000                                 # 5 km x 5 km
+  collection: naip
+  datetime: "2015-01-01/2026-12-31"            # newest year in this range is used
+  resolution: 1.0                              # output pixel size in meters
+  bands: [1, 2, 3, 4]                          # NAIP: red, green, blue, near-infrared
+  output: data/dayton/imagery.tif
+
+# User-defined land-cover categories. Keys are the unsigned integers written
+# to the output GeoTIFF; 0 is reserved for unlabeled / no data.
+classes:
+  1: {name: buildings, color: "#e31a1c"}
+  2: {name: roads, color: "#636363"}
+  3: {name: tree_canopy, color: "#33a02c"}
+  4: {name: low_vegetation, color: "#b2df8a"}
+  5: {name: water, color: "#1f78b4"}
+  6: {name: bare_ground, color: "#fdbf6f"}
+
+# Label polygons drawn over data/dayton/imagery.tif (e.g. in QGIS).
+labels:
+  path: data/dayton/labels.gpkg
+  class_field: class_id
+
+training:
+  model_path: data/dayton/model.pt
+  chip_size: 256               # multiple of 32
+  chip_stride: 128
+  min_labeled_fraction: 0.05   # skip chips with less labeled area than this
+  val_fraction: 0.2
+  encoder: resnet34
+  encoder_weights: imagenet    # or null to train from scratch
+  epochs: 50
+  batch_size: 8
+  learning_rate: 0.0001
+  samples_per_epoch: 400       # random chips drawn per epoch; null = one pass
+  seed: 0
+  device: auto                 # auto, cuda, mps or cpu
+
+prediction:
+  output: data/dayton/landcover.tif
+  tile_size: 512               # multiple of 32
+  overlap: 64                  # context discarded on each tile edge
+  batch_size: 4
+  device: auto
